@@ -2,7 +2,7 @@ const http = require('http');
 
 const url = require('url');
 
-var _data = require('./lib/data')
+// var _data = require('./lib/data')
 
 // test
 // ----------create-----------
@@ -18,9 +18,9 @@ var _data = require('./lib/data')
 //   console.log(err, data);
 // })
 // ----------delete-----------
-_data.delete('test', 'newFile', function(err, data) {
-  console.log(err, data);
-})
+// _data.delete('test', 'newFile', function(err, data) {
+//   console.log(err, data);
+// })
 
 var server = http.createServer(function(req, res) {
 
