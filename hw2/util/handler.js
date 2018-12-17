@@ -1,6 +1,6 @@
 var _data = require('./_data');
 var helpers = require('./helpers');
-
+var menu = require('../.data/menu/menu.json');
 
 var handler = {}
 handler.ping = function(data, callback) {
@@ -290,6 +290,34 @@ handler.token.verifyToken = function(token, phone, callback) {
       callback(false)
     }
   })
+}
+
+
+// Menu related Operation
+handler.menu = function(data, callback) {
+  if(data.method === 'get') {
+    // check whether there is a token
+    var token = typeof (data.headers.token) === "string" && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+    if(token) {
+    //  check whether the token is expired
+    _data.read('token', token, function(err, tokenInfo) {
+      if(!err && tokenInfo) {
+        if(tokenInfo.expireTime > Date.now()) {
+          // return the menu info (hard coded);
+          callback(200, menu)
+        }else {
+          callback(403, {"Error": "Token expired, please login again"})    
+        }
+      }else {
+        callback(500, {"Error": "Can't find the token file"})  
+      }
+    })
+    }else {
+      callback(403, {"Error": "No Token, not logged in, please log in"})
+    }
+  }else {
+    callback(401, {"Error": "Methods except get are not allowed in menu route"})
+  }
 }
 
 module.exports = handler;

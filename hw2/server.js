@@ -69,6 +69,7 @@ server.router = {
   'ping': handler.ping,
   'user': handler.user,
   'token': handler.token,
+  'menu': handler.menu,
 }
 
 
