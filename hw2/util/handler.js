@@ -3,6 +3,13 @@ var helpers = require('./helpers');
 var menu = require('../.data/menu/menu.json');
 
 var handler = {}
+handler.home = function(data, callback) {
+  if(data.method.toLowerCase() === 'get') {
+    callback(200, {"Data": "This is the home page"})
+  }else {
+    callback(401, {"Error": "Other method are not allowed"})
+  }
+}
 handler.ping = function(data, callback) {
   callback(200)
 }
@@ -183,7 +190,7 @@ handler.token.post = function(data, callback) {
           // starte to create the token for the user
           var tokenId = helpers.randomString(20);
           // user token expired in 5 minutes
-          var minute = 5;
+          var minute = 60;
           var expireTime = Date.now() + 1000 * 60 * minute;
           _data.create('token', tokenId, {tokenId, phone, expireTime}, function(err) {
             if(!err) {
@@ -291,9 +298,22 @@ handler.token.verifyToken = function(token, phone, callback) {
     }
   })
 }
+handler.token.verifyTokenTime = function(token, callback) {
+  _data.read('token', token, function(err, tokenInfo) {
+    if(!err && tokenInfo) {
+      if(tokenInfo.expireTime > Date.now()) {
+        callback(true, tokenInfo)
+      }else {
+        callback(false, tokenInfo);
+      }
+    }else {
+      callback(false, tokenInfo)
+    }
+  })
+}
 
 
-// Menu related Operation
+// Menu related Operation     @TODO - update the function with verifyTokenTime
 handler.menu = function(data, callback) {
   if(data.method === 'get') {
     // check whether there is a token
@@ -319,5 +339,86 @@ handler.menu = function(data, callback) {
     callback(401, {"Error": "Methods except get are not allowed in menu route"})
   }
 }
+
+// Shopping cart related Operation
+handler.cart = function(data, callback) {
+  var methods = ['get', 'post'];
+  if(methods.indexOf(data.method) > -1) {
+    handler.cart[data.method](data, callback)
+  }else {
+    callback(401, {"Error": "Method not allowed"})
+  }
+}
+
+handler.cart.post = function(data, callback) {
+  // first check wheter login
+  var token = typeof (data.headers.token) === "string" && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+
+  var newCartItem = typeof (data.payload.cart) === 'object' && data.payload.cart instanceof Array && data.payload.cart.length > 0 ? data.payload.cart : false;
+
+  if(token) {
+    // make sure there is item in the add-to-cart request
+    if(newCartItem) {
+      // make sure token is not expired
+      handler.token.verifyTokenTime(token, function(tokenIsValid, tokenInfo) {
+        if(tokenIsValid) {
+          // read user data and add item to the shopping cart list
+          _data.read('user', tokenInfo.phone, function(err, userData) {
+            if(!err && userData) {
+              var cart = typeof userData.cart === 'object' && userData.cart instanceof Array && userData.cart.length > 0 ? userData.cart : [];
+              cart.push(...newCartItem);
+              // write new cart item into user data and update
+              userData.cart = cart;
+              _data.update('user', tokenInfo.phone, userData, function(err) {
+                if(!err) {
+                  delete userData.password
+                  callback(200, userData)
+                }else {
+                  callback(500, {"Error": "Can't update the user info with new add items in cart"})        
+                }
+              })
+            }else {
+              callback(500, {"Error": "Can't read the user data when adding item to the cart"})    
+            }
+          })
+        }else {
+          callback(403, {"Error": "The token might expire, please login"})
+        }
+      })
+    }else {
+      callback(401, {"Error": "Missnig order info, please place order"})
+    }
+  }else {
+    callback(401, {"Error": "The token is missing, please first login and then order"})
+  }
+}
+
+handler.cart.get = function(data, callback) {
+  var token = typeof (data.headers.token) === "string" && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+  if(token) {
+    handler.token.verifyTokenTime(token, function(tokenIsValid, tokenInfo) {
+      if(tokenIsValid) {
+        // read user Data
+        _data.read('user', tokenInfo.phone, function(err, userData) {
+          if(!err) {
+            var cartInfo = userData.cart;
+            callback(200, cartInfo);
+          }else {
+            callback(500, {"Error": "can't find user info"})    
+          }
+        })
+      }else {
+        callback(401, {"Error": "Token is expired"})
+      }
+    })
+  }else {
+    callback(401, {"Error": "Token is not presented, please login"})
+  }
+}
+
+// handler.cart.update = function(data, callback) {
+
+// }
+
 
 module.exports = handler;

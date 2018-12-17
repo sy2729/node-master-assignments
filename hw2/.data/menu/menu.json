@@ -1,12 +1,1 @@
-{
-  "dishes": [
-    {
-      "name": "宫保鸡丁",
-      "price": 12
-    },
-    {
-      "name": "鱼香肉丝",
-      "price": 14
-    }
-  ]
-}
+{"dishes":[{"name":"宫保鸡丁","price":12,"id":"en2ndc9fpi"},{"name":"鱼香肉丝","price":14,"id":"am0edtvf8r"},{"name":"夫妻肺片","price":9,"id":"l5jkzj1wzu"},{"name":"毛血旺","price":20,"id":"53xr0tpbb6"},{"name":"干锅鸡","price":16,"id":"6m76prclkv"}]}

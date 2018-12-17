@@ -66,16 +66,20 @@ server.httpServer = http.createServer(function(req, res) {
 
 // defined a router collection
 server.router = {
+  '': handler.home,
   'ping': handler.ping,
   'user': handler.user,
   'token': handler.token,
   'menu': handler.menu,
+  'cart': handler.cart,
+  // 'order': handler.order,
 }
 
 
 server.init = function() {
-  server.httpServer.listen(3000, function() {    //configPort
-    console.log('the port is litened on 3000')
+  var port = 3000;
+  server.httpServer.listen(port, function() {    //configPort
+    console.log(`the port is litened on ${port}`)
   })   
 }
 
