@@ -37,6 +37,22 @@ helpers.randomString = function(length) {
   return result
 }
 
+helpers.calculateCartPrice = function(cartInfo) {
+  if(typeof cartInfo === 'object' && cartInfo instanceof Array && cartInfo.length > 0) {
+    var price = 0;
+    var text = '';
+    cartInfo.forEach((i)=> {
+      price += i.amount * i.price
+      var eachText = i === 0 ? `You ordered ${i.amount} ${i.name}, ` : `${i.amount} ${i.name} ,`;
+      text += eachText;
+    })
+    
+    return {price, text};
+  }else {
+    return false
+  }
+}
+
 
 
 

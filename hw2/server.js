@@ -72,6 +72,7 @@ server.router = {
   'token': handler.token,
   'menu': handler.menu,
   'cart': handler.cart,
+  'charge': handler.charge,
   // 'order': handler.order,
 }
 

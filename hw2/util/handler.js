@@ -1,5 +1,7 @@
 var _data = require('./_data');
 var helpers = require('./helpers');
+var pay = require('./charge');
+var emailSys = require('./email');
 var menu = require('../.data/menu/menu.json');
 
 var handler = {}
@@ -108,7 +110,7 @@ handler.user.put = function(data, callback) {
     handler.token.verifyToken(token, phone, function(tokenIsValid) {
       if(tokenIsValid) {
           // then check if it is necessary to update - whether new info exist
-          if(firstName || lastName || password) {
+          if(firstName || lastName || password || email) {
             // check whether the user to update exist
             _data.read('user', phone, function(err, userData) {
               if(!err && userData) {
@@ -402,7 +404,7 @@ handler.cart.get = function(data, callback) {
         _data.read('user', tokenInfo.phone, function(err, userData) {
           if(!err) {
             var cartInfo = userData.cart;
-            callback(200, cartInfo);
+            callback(200, {items: cartInfo});
           }else {
             callback(500, {"Error": "can't find user info"})    
           }
@@ -419,6 +421,99 @@ handler.cart.get = function(data, callback) {
 // handler.cart.update = function(data, callback) {
 
 // }
+
+
+// Order related Operation - Payment
+handler.charge = function(data, callback){
+  if(data.method.toLowerCase() === 'post') {
+    handler.charge.post(data, callback)
+  }
+}
+
+handler.charge.post = function(data, callback) {
+  var token = typeof (data.headers.token) === "string" && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+
+  handler.token.verifyTokenTime(token, function(tokenIsValid, tokenInfo) {
+    if(tokenIsValid) {
+      // read cart Data
+      _data.read('user', tokenInfo.phone, function(err, userData) {
+        if(!err) {
+          var cartInfo = userData.cart;
+          var result = helpers.calculateCartPrice(cartInfo);
+          if(typeof result === 'object' && typeof (result.price) === 'number' && result.price > 0) {
+            // test stripe token and email
+            var testStripeToken = 'tok_visa';
+            // var email = 'yazeishuai@gmail.com'
+            // the base price is cent, so * 100
+            var orderData = {amount: result.price * 100, currency: 'usd', description: result.text, source: testStripeToken};
+            pay.charge(orderData, function(err) {
+              if(!err) {
+                console.log({"Success": "The payment was successful"})
+
+                // process for completting the order
+                // create new order file
+                var orderId = helpers.randomString(20);
+                var props = ['cart', 'phone'];
+                var temp = {};
+                props.forEach((i)=> {
+                  temp[i] = userData[i];
+                })
+                Object.assign(orderData, temp);
+                _data.create('order', orderId, orderData, function(err) {
+                  if(!err) {
+                    // deleted the cart record from user info and add the order record
+                    userData.cart = [];
+                    var userOrderRecord = typeof (userData.order) === "object" && userData.order instanceof Array && userData.order > 0 ? userData.order : [];
+                    userOrderRecord.push(orderId);
+                    userData.order = userOrderRecord;
+                    _data.update('user', tokenInfo.phone, userData, function(err) {
+                      if(!err) {
+                        console.log({"Success": "Payment was made successfully"})
+
+                        // prepare data for sending email
+                        var orderdetail = {
+                          orderId,
+                          orderDate: new Date(),
+                          email: userData.email,
+                          description: 'Order Success' + orderData.description,
+                          total : orderData.amount * 100
+                        };
+                        var paymentdetail = {
+                          currency: 'usd'
+                        };
+                        // process for sending the email
+                        emailSys.sendEmail(orderdetail, paymentdetail, function(err) {
+                          if(!err) {
+                            callback(200, {"Sucess": "the payment was made and the email was send successfully"})
+                          }else {
+                            callback(500, {"Error": "payment was made successfully but the email failed to send"})
+                          }
+                        })
+
+                      }else {
+                        callback(500, {"Error": "Payment was made and order was created  successfully, but updating user file failed"})
+                      }
+                    })
+                  }else {
+                    callback(500, {"Error": "pay succussfully, but failed to create order file"})
+                  }
+                })
+              }else {
+                callback(500, {"Error": err})
+              }
+            })
+          }else {
+            callback(500, {"Error": "Nothing to check out!!!"})
+          }
+        }else {
+          callback(500, {"Error": "can't find user info"})    
+        }
+      })
+    }else {
+      callback(403, "Token Expired")
+    }
+  })
+}
 
 
 module.exports = handler;
